@@ -218,6 +218,11 @@ async function runPerformanceTest() {
     // Create a test image if it doesn't exist
     const testImagePath = path.join(testDir, 'bigger-image.jpg');
 
+    // Create a output directory if it doesn't exist
+    const outputDir = path.join(__dirname, '..', 'output');
+    await fs.promises.rm(outputDir, { recursive: true, force: true });
+    await fs.promises.mkdir(outputDir, { recursive: true });
+
     console.log('Starting performance test...\n');
     console.log(`Test configuration:`);
     console.log(`- Iterations: ${TEST_ITERATIONS}`);
@@ -278,7 +283,7 @@ async function runPerformanceTest() {
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
-        const result = await processWithPath(testImagePath, path.join(testDir, `output-${i}.jpg`));
+        const result = await processWithPath(testImagePath, path.join(outputDir, `output-${i}.jpg`));
         pathResults.push(result);
 
         // Show progress every 100 iterations
