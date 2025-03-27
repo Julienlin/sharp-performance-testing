@@ -58,6 +58,9 @@ async function processWithBuffer(inputPath: string): Promise<ProcessResult> {
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
 
+    // Baseline memory usage
+    sampleMemory(samples, memoryStartTime);
+
     // Start memory sampling
     const samplingInterval = setInterval(() => {
         sampleMemory(samples, memoryStartTime);
@@ -89,6 +92,9 @@ async function processWithStream(inputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
+
+    // Baseline memory usage
+    sampleMemory(samples, memoryStartTime);
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
@@ -128,6 +134,9 @@ async function processWithPath(inputPath: string, outputPath: string): Promise<P
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
+
+    // Baseline memory usage
+    sampleMemory(samples, memoryStartTime);
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
