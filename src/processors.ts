@@ -3,19 +3,23 @@ import fs from 'fs';
 import { createReadStream } from 'fs';
 import { ProcessOptions, ProcessResult } from './types';
 import { DEFAULT_CONFIG } from './config';
-import { sampleMemory } from './utils';
+import { getMemoryUsage, sampleMemory } from './utils';
 
 export async function processWithBuffer({ inputPath, width, fit, withoutEnlargement }: ProcessOptions): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: ProcessResult['samples'] = [];
 
-    // Baseline memory usage
-    await sampleMemory(samples, memoryStartTime);
+    await (global.gc as (() => void))();
+    
+    const baselineMemory = {
+        timestamp: memoryStartTime,
+        ...getMemoryUsage(),
+    }
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
-        sampleMemory(samples, memoryStartTime);
+        sampleMemory(samples, memoryStartTime, baselineMemory);
     }, DEFAULT_CONFIG.MEMORY_SAMPLE_INTERVAL);
 
     try {
@@ -42,12 +46,15 @@ export async function processWithStream({ inputPath, width, fit, withoutEnlargem
     const memoryStartTime = Date.now();
     const samples: ProcessResult['samples'] = [];
 
-    // Baseline memory usage
-    await sampleMemory(samples, memoryStartTime);
+    await (global.gc as (() => void))();
+    const baselineMemory = {
+        timestamp: memoryStartTime,
+        ...getMemoryUsage(),
+    }
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
-        sampleMemory(samples, memoryStartTime);
+        sampleMemory(samples, memoryStartTime, baselineMemory);
     }, DEFAULT_CONFIG.MEMORY_SAMPLE_INTERVAL);
 
     try {
@@ -84,12 +91,15 @@ export async function processWithPath({ inputPath, outputPath, width, fit, witho
     const memoryStartTime = Date.now();
     const samples: ProcessResult['samples'] = [];
 
-    // Baseline memory usage
-    await sampleMemory(samples, memoryStartTime);
+    await (global.gc as (() => void))();
+    const baselineMemory = {
+        timestamp: memoryStartTime,
+        ...getMemoryUsage(),
+    }
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
-        sampleMemory(samples, memoryStartTime);
+        sampleMemory(samples, memoryStartTime, baselineMemory);
     }, DEFAULT_CONFIG.MEMORY_SAMPLE_INTERVAL);
 
     try {
@@ -113,12 +123,15 @@ export async function processWithSequentialStream({ inputPath, width, fit, witho
     const memoryStartTime = Date.now();
     const samples: ProcessResult['samples'] = [];
 
-    // Baseline memory usage
-    await sampleMemory(samples, memoryStartTime);
+    await (global.gc as (() => void))();
+    const baselineMemory = {
+        timestamp: memoryStartTime,
+        ...getMemoryUsage(),
+    }
 
     // Start memory sampling
     const samplingInterval = setInterval(() => {
-        sampleMemory(samples, memoryStartTime);
+        sampleMemory(samples, memoryStartTime, baselineMemory);
     }, DEFAULT_CONFIG.MEMORY_SAMPLE_INTERVAL);
 
     try {

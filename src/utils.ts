@@ -10,11 +10,14 @@ export function getMemoryUsage(): { heapUsed: number; heapTotal: number; externa
     };
 }
 
-export async function sampleMemory(samples: MemorySample[], startTime: number): Promise<void> {
+export async function sampleMemory(samples: MemorySample[], startTime: number, baselineMemory:MemorySample): Promise<void> {
     const memory = getMemoryUsage();
     samples.push({
         timestamp: Date.now() - startTime,
-        ...memory,
+        heapUsed: memory.heapUsed - baselineMemory.heapUsed,
+        heapTotal: memory.heapTotal - baselineMemory.heapTotal,
+        external: memory.external - baselineMemory.external,
+        rss: memory.rss - baselineMemory.rss,
     });
 }
 
