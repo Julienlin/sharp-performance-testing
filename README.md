@@ -2,7 +2,7 @@
 
 > **Disclaimer**: This repository and its contents were primarily generated using AI tools. While the code and documentation have been reviewed for accuracy, please use this as a reference and verify the results in your own environment.
 
-This project compares the performance of Sharp image processing library using different methods: buffer vs stream processing.
+This project compares the performance of Sharp image processing library using different methods: buffer, stream, and direct path access.
 
 ## Setup
 
@@ -35,7 +35,7 @@ npm start
 
 The test will:
 1. Create a test image if it doesn't exist
-2. Run 500 iterations for each method (buffer and stream)
+2. Run 500 iterations for each method (buffer, stream, and path)
 3. Display progress every 100 iterations
 4. Show final results with detailed statistics
 
@@ -50,41 +50,91 @@ The test will:
 ## Results
 
 ### Buffer Method
-- **Average Time**: 510.38ms
-- **Min Time**: 470.17ms
-- **Max Time**: 717.46ms
+- **Average Time**: 509.34ms
+- **Min Time**: 473.74ms
+- **Max Time**: 696.95ms
+- **Memory Usage**:
+  - Heap Used: 0.00MB
+  - Heap Total: -0.00MB
+  - External: 0.02MB
 
 ### Stream Method
-- **Average Time**: 504.09ms
-- **Min Time**: 472.50ms
-- **Max Time**: 913.48ms
+- **Average Time**: 507.78ms
+- **Min Time**: 473.62ms
+- **Max Time**: 650.74ms
+- **Memory Usage**:
+  - Heap Used: 0.00MB
+  - Heap Total: 0.00MB
+  - External: 0.03MB
 
-### Comparison
-- **Time Difference**: 6.29ms
-- **Performance Ratio**: Stream method is 1.01x faster than buffer method
+### Path Method
+- **Average Time**: 498.63ms
+- **Min Time**: 469.77ms
+- **Max Time**: 627.06ms
+- **Memory Usage**:
+  - Heap Used: 0.00MB
+  - Heap Total: 0.00MB
+  - External: -0.04MB
+
+### Performance Comparison
+- **Time Differences**:
+  - Buffer vs Stream: 1.56ms
+  - Buffer vs Path: 10.71ms
+  - Stream vs Path: 9.15ms
+- **Performance Ratios**:
+  - Stream vs Buffer: 1.00x
+  - Path vs Buffer: 1.02x
+  - Path vs Stream: 1.02x
+- **Memory Differences**:
+  - Heap Used (Buffer vs Stream): 0.00MB
+  - Heap Used (Buffer vs Path): 0.00MB
+  - Heap Used (Stream vs Path): 0.00MB
 
 ## Progress Analysis
 
 ### Buffer Method
-- 20%: 503.18ms avg
-- 40%: 501.28ms avg
-- 60%: 499.43ms avg
-- 80%: 526.30ms avg
-- 100%: 521.73ms avg
+- 20%: 515.70ms avg
+- 40%: 507.28ms avg
+- 60%: 504.13ms avg
+- 80%: 503.89ms avg
+- 100%: 515.73ms avg
 
 ### Stream Method
-- 20%: 498.71ms avg
-- 40%: 506.20ms avg
-- 60%: 520.34ms avg
-- 80%: 495.97ms avg
-- 100%: 499.23ms avg
+- 20%: 509.93ms avg
+- 40%: 505.60ms avg
+- 60%: 509.31ms avg
+- 80%: 508.56ms avg
+- 100%: 505.52ms avg
+
+### Path Method
+- 20%: 497.62ms avg
+- 40%: 494.02ms avg
+- 60%: 500.34ms avg
+- 80%: 507.71ms avg
+- 100%: 493.48ms avg
 
 ## Conclusion
 
-The stream method shows slightly better performance (about 1% faster) compared to the buffer method. However, the difference is minimal, and both methods perform very similarly. The stream method has the advantage of:
+The test results show that all three methods perform similarly, with the path method being slightly faster (about 2% faster than buffer and stream methods). Key findings:
 
-1. Lower memory usage (processes data in chunks)
-2. More consistent performance (lower standard deviation)
-3. Better scalability for larger files
+1. **Performance**:
+   - Path method is the fastest (498.63ms average)
+   - Stream method is second (507.78ms average)
+   - Buffer method is slowest (509.34ms average)
+   - Differences between methods are small (1-2%)
 
-The buffer method shows more variation in performance, particularly in the maximum processing time, which could be attributed to memory allocation and garbage collection patterns. 
+2. **Memory Usage**:
+   - All methods show very similar memory usage
+   - Memory differences are negligible
+   - External memory usage varies slightly but remains very small
+
+3. **Consistency**:
+   - Path method shows the most consistent performance
+   - Stream method is slightly more consistent than buffer method
+   - All methods maintain stable performance across iterations
+
+The path method appears to be the most efficient approach because:
+1. It lets Sharp handle the file reading internally
+2. It avoids the overhead of creating streams or buffers
+3. It can optimize the file access pattern
+4. It shows the most consistent performance across iterations 
