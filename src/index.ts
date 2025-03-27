@@ -41,7 +41,7 @@ function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: numb
         heapUsed: Math.round(usage.heapUsed / 1024 / 1024), // MB
         heapTotal: Math.round(usage.heapTotal / 1024 / 1024), // MB
         external: Math.round(usage.external / 1024 / 1024), // MB
-        rss: Math.round(usage.rss / 1024 / 1024) // MB
+        rss: Math.round(usage.rss / 1024 / 1024), // MB
     };
 }
 
@@ -49,7 +49,7 @@ async function sampleMemory(samples: MemorySample[], startTime: number) {
     const memory = getMemoryUsage();
     samples.push({
         timestamp: Date.now() - startTime,
-        ...memory
+        ...memory,
     });
 }
 
@@ -57,31 +57,31 @@ async function processWithBuffer(inputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
-    
+
     // Start memory sampling
     const samplingInterval = setInterval(() => {
         sampleMemory(samples, memoryStartTime);
     }, MEMORY_SAMPLE_INTERVAL);
-    
+
     // Read the entire file into memory
     const inputBuffer = await fs.promises.readFile(inputPath);
-    
+
     // Process the image without saving
     await sharp(inputBuffer)
         .resize(IMAGE_SIZE, null, {
             fit: 'inside',
-            withoutEnlargement: true
+            withoutEnlargement: true,
         })
         .toBuffer();
-    
+
     // Stop memory sampling
     clearInterval(samplingInterval);
-    
+
     const endTime = process.hrtime.bigint();
-    
+
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        samples
+        samples,
     };
 }
 
@@ -89,37 +89,38 @@ async function processWithStream(inputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
-    
+
     // Start memory sampling
     const samplingInterval = setInterval(() => {
         sampleMemory(samples, memoryStartTime);
     }, MEMORY_SAMPLE_INTERVAL);
-    
+
     // Create read stream
     const readStream = createReadStream(inputPath);
-    
+
     // Process the image using streams without saving
     await new Promise((resolve, reject) => {
         readStream
-            .pipe(sharp()
-                .resize(IMAGE_SIZE, null, {
+            .pipe(
+                sharp().resize(IMAGE_SIZE, null, {
                     fit: 'inside',
-                    withoutEnlargement: true
-                }))
-            .toBuffer((err) => {
+                    withoutEnlargement: true,
+                })
+            )
+            .toBuffer(err => {
                 if (err) reject(err);
                 else resolve(null);
             });
     });
-    
+
     // Stop memory sampling
     clearInterval(samplingInterval);
-    
+
     const endTime = process.hrtime.bigint();
-    
+
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        samples
+        samples,
     };
 }
 
@@ -127,47 +128,47 @@ async function processWithPath(inputPath: string, outputPath: string): Promise<P
     const startTime = process.hrtime.bigint();
     const memoryStartTime = Date.now();
     const samples: MemorySample[] = [];
-    
+
     // Start memory sampling
     const samplingInterval = setInterval(() => {
         sampleMemory(samples, memoryStartTime);
     }, MEMORY_SAMPLE_INTERVAL);
-    
+
     // Process the image using direct path access
     await sharp(inputPath)
         .resize(IMAGE_SIZE, null, {
             fit: 'inside',
-            withoutEnlargement: true
+            withoutEnlargement: true,
         })
         .toFile(outputPath);
-    
+
     // Stop memory sampling
     clearInterval(samplingInterval);
-    
+
     const endTime = process.hrtime.bigint();
-    
+
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        samples
+        samples,
     };
 }
 
 function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStats[] {
     if (samplesArray.length === 0) return [];
-    
+
     // Find the maximum number of samples across all iterations
     const maxSamples = Math.max(...samplesArray.map(samples => samples.length));
-    
+
     // Initialize result array
     const result: MemorySampleStats[] = [];
-    
+
     // For each time point, calculate the stats across all iterations
     for (let i = 0; i < maxSamples; i++) {
         let heapUsedValues: number[] = [];
         let heapTotalValues: number[] = [];
         let externalValues: number[] = [];
         let rssValues: number[] = [];
-        
+
         // Collect values from all iterations that have this sample point
         for (const samples of samplesArray) {
             if (i < samples.length) {
@@ -177,7 +178,7 @@ function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStat
                 rssValues.push(samples[i].rss);
             }
         }
-        
+
         // Calculate stats if we have any samples
         if (heapUsedValues.length > 0) {
             result.push({
@@ -185,34 +186,33 @@ function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStat
                 heapUsed: {
                     min: Math.min(...heapUsedValues),
                     max: Math.max(...heapUsedValues),
-                    avg: heapUsedValues.reduce((a, b) => a + b, 0) / heapUsedValues.length
+                    avg: heapUsedValues.reduce((a, b) => a + b, 0) / heapUsedValues.length,
                 },
                 heapTotal: {
                     min: Math.min(...heapTotalValues),
                     max: Math.max(...heapTotalValues),
-                    avg: heapTotalValues.reduce((a, b) => a + b, 0) / heapTotalValues.length
+                    avg: heapTotalValues.reduce((a, b) => a + b, 0) / heapTotalValues.length,
                 },
                 external: {
                     min: Math.min(...externalValues),
                     max: Math.max(...externalValues),
-                    avg: externalValues.reduce((a, b) => a + b, 0) / externalValues.length
+                    avg: externalValues.reduce((a, b) => a + b, 0) / externalValues.length,
                 },
                 rss: {
                     min: Math.min(...rssValues),
                     max: Math.max(...rssValues),
-                    avg: rssValues.reduce((a, b) => a + b, 0) / rssValues.length
-                }
+                    avg: rssValues.reduce((a, b) => a + b, 0) / rssValues.length,
+                },
             });
         }
     }
-    
+
     return result;
 }
 
 async function runPerformanceTest() {
     // Create test directory if it doesn't exist
     const testDir = path.join(__dirname, '..', 'test-images');
-    await fs.promises.rm(testDir, { recursive: true, force: true });
     await fs.promises.mkdir(testDir, { recursive: true });
 
     // Create a test image if it doesn't exist
@@ -234,10 +234,10 @@ async function runPerformanceTest() {
         sharp.cache(false);
         const result = await processWithBuffer(testImagePath);
         bufferResults.push(result);
-        
+
         // Show progress every 100 iterations
         if ((i + 1) % 100 === 0) {
-            const progress = ((i + 1) / TEST_ITERATIONS * 100).toFixed(1);
+            const progress = (((i + 1) / TEST_ITERATIONS) * 100).toFixed(1);
             const avgTime = bufferResults.slice(-100).reduce((a, b) => a + b.time, 0) / 100;
             console.log(`Progress: ${progress}% | Last 100 avg: ${avgTime.toFixed(2)}ms`);
         }
@@ -257,10 +257,10 @@ async function runPerformanceTest() {
         sharp.cache(false);
         const result = await processWithStream(testImagePath);
         streamResults.push(result);
-        
+
         // Show progress every 100 iterations
         if ((i + 1) % 100 === 0) {
-            const progress = ((i + 1) / TEST_ITERATIONS * 100).toFixed(1);
+            const progress = (((i + 1) / TEST_ITERATIONS) * 100).toFixed(1);
             const avgTime = streamResults.slice(-100).reduce((a, b) => a + b.time, 0) / 100;
             console.log(`Progress: ${progress}% | Last 100 avg: ${avgTime.toFixed(2)}ms`);
         }
@@ -280,10 +280,10 @@ async function runPerformanceTest() {
         sharp.cache(false);
         const result = await processWithPath(testImagePath, path.join(testDir, `output-${i}.jpg`));
         pathResults.push(result);
-        
+
         // Show progress every 100 iterations
         if ((i + 1) % 100 === 0) {
-            const progress = ((i + 1) / TEST_ITERATIONS * 100).toFixed(1);
+            const progress = (((i + 1) / TEST_ITERATIONS) * 100).toFixed(1);
             const avgTime = pathResults.slice(-100).reduce((a, b) => a + b.time, 0) / 100;
             console.log(`Progress: ${progress}% | Last 100 avg: ${avgTime.toFixed(2)}ms`);
         }
@@ -313,25 +313,25 @@ async function runPerformanceTest() {
     console.log(`  Min time: ${minBufferTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxBufferTime.toFixed(2)}ms`);
     console.log(`  Memory samples: ${avgBufferSamples.length} points`);
-    
+
     console.log('\nStream method:');
     console.log(`  Average time: ${avgStreamTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minStreamTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxStreamTime.toFixed(2)}ms`);
     console.log(`  Memory samples: ${avgStreamSamples.length} points`);
-    
+
     console.log('\nPath method:');
     console.log(`  Average time: ${avgPathTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minPathTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxPathTime.toFixed(2)}ms`);
     console.log(`  Memory samples: ${avgPathSamples.length} points`);
-    
+
     console.log('\nComparison:');
     console.log(`  Time Differences:`);
     console.log(`    Buffer vs Stream: ${Math.abs(avgBufferTime - avgStreamTime).toFixed(2)}ms`);
     console.log(`    Buffer vs Path: ${Math.abs(avgBufferTime - avgPathTime).toFixed(2)}ms`);
     console.log(`    Stream vs Path: ${Math.abs(avgStreamTime - avgPathTime).toFixed(2)}ms`);
-    
+
     console.log(`\n  Performance Ratios:`);
     console.log(`    Path vs Buffer: ${(avgBufferTime / avgPathTime).toFixed(2)}x faster`);
     console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x faster`);
@@ -339,4 +339,4 @@ async function runPerformanceTest() {
 }
 
 // Run the test
-runPerformanceTest().catch(console.error); 
+runPerformanceTest().catch(console.error);

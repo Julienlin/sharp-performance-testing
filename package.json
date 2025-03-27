@@ -5,11 +5,21 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node --max-old-space-size=8192 --expose-gc dist/index.js"
+    "start": "node --max-old-space-size=8192 --expose-gc dist/index.js",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
   },
   "devDependencies": {
-    "typescript": "^5.8.2",
-    "@types/node": "^20.11.24"
+    "@types/node": "^20.11.24",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "eslint": "^9.23.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.5",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
   },
   "dependencies": {
     "sharp": "^0.33.2"
