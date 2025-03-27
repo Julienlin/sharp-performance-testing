@@ -1,5 +1,7 @@
 # Sharp Performance Test
 
+> **Disclaimer**: This repository and its contents were primarily generated using AI tools. While the code and documentation have been reviewed for accuracy, please use this as a reference and verify the results in your own environment.
+
 This project compares the performance of Sharp image processing library using different methods: buffer vs stream processing.
 
 ## Setup
