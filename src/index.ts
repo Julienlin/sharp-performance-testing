@@ -152,8 +152,6 @@ async function processWithPath(inputPath: string, outputPath: string): Promise<P
     };
 }
 
-
-
 function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStats[] {
     if (samplesArray.length === 0) return [];
     
@@ -245,6 +243,12 @@ async function runPerformanceTest() {
         }
     }
 
+    // Force garbage collection before starting stream method
+    if (global.gc) {
+        global.gc();
+        console.log('\nGarbage collection performed before stream method');
+    }
+
     // Test with stream
     console.log('\nTesting with stream method:');
     const streamResults: ProcessResult[] = [];
@@ -260,6 +264,12 @@ async function runPerformanceTest() {
             const avgTime = streamResults.slice(-100).reduce((a, b) => a + b.time, 0) / 100;
             console.log(`Progress: ${progress}% | Last 100 avg: ${avgTime.toFixed(2)}ms`);
         }
+    }
+
+    // Force garbage collection before starting path method
+    if (global.gc) {
+        global.gc();
+        console.log('\nGarbage collection performed before path method');
     }
 
     // Test with path
@@ -326,7 +336,6 @@ async function runPerformanceTest() {
     console.log(`    Path vs Buffer: ${(avgBufferTime / avgPathTime).toFixed(2)}x faster`);
     console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x faster`);
     console.log(`    Stream vs Buffer: ${(avgBufferTime / avgStreamTime).toFixed(2)}x faster`);
-
 }
 
 // Run the test
