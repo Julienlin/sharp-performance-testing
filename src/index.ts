@@ -4,7 +4,7 @@ import path from 'path';
 import { createReadStream } from 'fs';
 
 // Configuration
-const TEST_ITERATIONS = 1000;
+const TEST_ITERATIONS = 500;
 const IMAGE_SIZE = 1920; // Width in pixels
 const MEMORY_SAMPLE_INTERVAL = 100; // ms
 

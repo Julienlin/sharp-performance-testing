@@ -44,104 +44,88 @@ The test will:
 - **Iterations**: 500
 - **Input Image**: 3840x2160 (4K)
 - **Output Width**: 1920px (maintaining aspect ratio)
-- **JPEG Quality**: 80
+- **Node.js Memory Limit**: 8GB (--max-old-space-size=8192)
+- **Memory Sampling Interval**: 100ms
 - **Cache**: Disabled for each iteration
-- **Node.js Memory Limit**: 8GB (--max-old-space-size=8192  )
+- **Garbage Collection**: Explicitly called between methods
 
 ## Results
 
 ### Buffer Method
-- **Average Time**: 561.75ms
-- **Min Time**: 467.74ms
-- **Max Time**: 1005.57ms
+- **Average Time**: 500.52ms
+- **Min Time**: 470.75ms
+- **Max Time**: 672.34ms
 - **Memory Usage**:
-  - Heap Used: 0.00MB
-  - Heap Total: 0.00MB
-  - External: 0.06MB
-  - RSS: 0.36MB
+  - Heap Used: 5.97MB (min: 4.00MB, max: 7.00MB)
+  - Heap Total: 7.25MB (min: 6.00MB, max: 10.00MB)
+  - External: 20.45MB (min: 2.00MB, max: 35.00MB)
+  - RSS: 228.50MB (min: 56.00MB, max: 234.00MB)
 
 ### Stream Method
-- **Average Time**: 543.95ms
-- **Min Time**: 470.95ms
-- **Max Time**: 1004.72ms
+- **Average Time**: 503.73ms
+- **Min Time**: 473.89ms
+- **Max Time**: 710.36ms
 - **Memory Usage**:
-  - Heap Used: 0.00MB
-  - Heap Total: 0.00MB
-  - External: -0.04MB
-  - RSS: 0.01MB
+  - Heap Used: 6.81MB (min: 5.00MB, max: 8.00MB)
+  - Heap Total: 8.29MB (min: 8.00MB, max: 10.00MB)
+  - External: 20.60MB (min: 6.00MB, max: 36.00MB)
+  - RSS: 234.30MB (min: 233.00MB, max: 236.00MB)
 
 ### Path Method
-- **Average Time**: 497.13ms
-- **Min Time**: 465.65ms
-- **Max Time**: 639.15ms
+- **Average Time**: 506.65ms
+- **Min Time**: 470.02ms
+- **Max Time**: 801.24ms
 - **Memory Usage**:
-  - Heap Used: 0.00MB
-  - Heap Total: 0.00MB
-  - External: 0.03MB
-  - RSS: 0.05MB
+  - Heap Used: 7.42MB (min: 6.00MB, max: 9.00MB)
+  - Heap Total: 9.15MB (min: 9.00MB, max: 10.00MB)
+  - External: 4.18MB (min: 2.00MB, max: 31.00MB)
+  - RSS: 237.02MB (min: 235.00MB, max: 240.00MB)
 
 ### Performance Comparison
 - **Time Differences**:
-  - Buffer vs Stream: 17.80ms
-  - Buffer vs Path: 64.62ms
-  - Stream vs Path: 46.82ms
+  - Buffer vs Stream: 3.21ms
+  - Buffer vs Path: 6.13ms
+  - Stream vs Path: 2.92ms
 - **Performance Ratios**:
-  - Path vs Buffer: 1.13x faster
-  - Path vs Stream: 1.09x faster
-  - Stream vs Buffer: 1.03x faster
-- **Memory Differences**:
-  - Buffer vs Stream: 0.00MB (Heap), 0.11MB (External), 0.34MB (RSS)
-  - Buffer vs Path: 0.00MB (Heap), 0.03MB (External), 0.30MB (RSS)
-  - Stream vs Path: 0.00MB (Heap), 0.07MB (External), 0.04MB (RSS)
+  - Path vs Buffer: Path is 0.99x faster
+  - Path vs Stream: Path is 0.99x faster
+  - Stream vs Buffer: Stream is 0.99x faster
 
-## Progress Analysis
-
-### Buffer Method
-- 20%: 570.25ms avg
-- 40%: 565.12ms avg
-- 60%: 562.34ms avg
-- 80%: 561.89ms avg
-- 100%: 561.75ms avg
-
-### Stream Method
-- 20%: 550.45ms avg
-- 40%: 547.23ms avg
-- 60%: 545.67ms avg
-- 80%: 544.89ms avg
-- 100%: 543.95ms avg
-
-### Path Method
-- 20%: 500.12ms avg
-- 40%: 498.45ms avg
-- 60%: 497.89ms avg
-- 80%: 497.56ms avg
-- 100%: 497.13ms avg
+### Memory Usage Comparison
+- **Heap Used**:
+  - Buffer vs Path: Buffer uses 0.80x more
+  - Stream vs Path: Stream uses 0.92x more
+  - Buffer vs Stream: Buffer uses 0.88x more
+- **Heap Total**:
+  - Buffer vs Path: Buffer uses 0.79x more
+  - Stream vs Path: Stream uses 0.91x more
+  - Buffer vs Stream: Buffer uses 0.88x more
+- **External Memory**:
+  - Buffer vs Path: Buffer uses 4.89x more
+  - Stream vs Path: Stream uses 4.93x more
+  - Buffer vs Stream: Buffer uses 0.99x more
+- **RSS (Resident Set Size)**:
+  - Buffer vs Path: Buffer uses 0.96x more
+  - Stream vs Path: Stream uses 0.99x more
+  - Buffer vs Stream: Buffer uses 0.98x more
 
 ## Conclusion
 
-The test results show significant performance differences between methods, with the path method being notably faster (13% faster than buffer method). Key findings:
+The test results show that all three methods perform very similarly in terms of processing time, with differences of less than 1% between them. However, there are notable differences in memory usage:
 
-1. **Performance**:
-   - Path method is the fastest (497.13ms average)
-   - Stream method is second (543.95ms average)
-   - Buffer method is slowest (561.75ms average)
-   - Differences between methods are significant (3-13%)
+1. **Processing Time**:
+   - All methods perform within 1% of each other
+   - The buffer method is slightly faster (500.52ms) than the path method (506.65ms)
+   - The stream method falls in between (503.73ms)
 
 2. **Memory Usage**:
-   - All methods show minimal heap usage differences
-   - Buffer method uses more external memory (0.06MB) and RSS (0.36MB)
-   - Path method shows the most consistent memory usage across all metrics
-   - Stream method has the lowest RSS memory usage (0.01MB)
+   - The path method uses the most heap memory (7.42MB) but the least external memory (4.18MB)
+   - The buffer method uses the least heap memory (5.97MB) but the most external memory (20.45MB)
+   - The stream method falls in between for both metrics
+   - RSS is similar across all methods, with the path method using slightly more (237.02MB)
 
-3. **Consistency**:
-   - Path method shows the most consistent performance with smallest time range
-   - Buffer and stream methods show more variation in maximum times
-   - All methods maintain stable average times across iterations
-
-The path method is the recommended approach because:
-1. It provides the best performance (13% faster than buffer method)
-2. It shows the most consistent execution times
-3. It has the most stable memory usage pattern
-4. It requires the least amount of memory overhead
-5. It lets Sharp handle the file reading internally
-6. It avoids the overhead of creating streams or buffers 
+3. **Recommendations**:
+   - For applications where memory usage is critical, the buffer method might be preferred as it uses the least heap memory
+   - For applications where external memory usage is a concern, the path method is the most efficient
+   - The stream method provides a good balance between heap and external memory usage
+   - All methods are viable choices as they perform similarly in terms of processing time 
