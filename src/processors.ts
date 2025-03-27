@@ -14,7 +14,7 @@ export async function processWithBuffer({ inputPath, width, fit, withoutEnlargem
     
     const baselineMemory = {
         timestamp: memoryStartTime,
-        ...getMemoryUsage(),
+        ...await getMemoryUsage(),
     }
 
     // Start memory sampling
@@ -49,7 +49,7 @@ export async function processWithStream({ inputPath, width, fit, withoutEnlargem
     await (global.gc as (() => void))();
     const baselineMemory = {
         timestamp: memoryStartTime,
-        ...getMemoryUsage(),
+        ...await getMemoryUsage(),
     }
 
     // Start memory sampling
@@ -94,7 +94,7 @@ export async function processWithPath({ inputPath, outputPath, width, fit, witho
     await (global.gc as (() => void))();
     const baselineMemory = {
         timestamp: memoryStartTime,
-        ...getMemoryUsage(),
+        ...await getMemoryUsage(),
     }
 
     // Start memory sampling
@@ -126,7 +126,7 @@ export async function processWithSequentialStream({ inputPath, width, fit, witho
     await (global.gc as (() => void))();
     const baselineMemory = {
         timestamp: memoryStartTime,
-        ...getMemoryUsage(),
+        ...await getMemoryUsage(),
     }
 
     // Start memory sampling

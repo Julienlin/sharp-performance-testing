@@ -1,6 +1,7 @@
 import { MemorySample, MemoryStats, MemorySampleStats } from './types';
 
-export function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: number; rss: number } {
+export async function getMemoryUsage(): Promise<{ heapUsed: number; heapTotal: number; external: number; rss: number }> {
+    await (global.gc as (() => void))();
     const usage = process.memoryUsage();
     return {
         heapUsed: Math.round(usage.heapUsed / 1024 / 1024), // MB
@@ -11,7 +12,7 @@ export function getMemoryUsage(): { heapUsed: number; heapTotal: number; externa
 }
 
 export async function sampleMemory(samples: MemorySample[], startTime: number, baselineMemory:MemorySample): Promise<void> {
-    const memory = getMemoryUsage();
+    const memory = await getMemoryUsage();
     samples.push({
         timestamp: Date.now() - startTime,
         heapUsed: memory.heapUsed - baselineMemory.heapUsed,
