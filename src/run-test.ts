@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { runBufferTest, runStreamTest, runPathTest, TestResults } from './test-functions';
+import { runBufferTest, runStreamTest, runPathTest } from './test-functions';
+import { TestResults } from './types';
 
 async function saveResults(method: string, results: TestResults) {
     const outputDir = path.join(__dirname, '..', 'results');

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { TestResults } from './test-functions';
+import { TestResults } from './types';
 
 interface ComparisonResult {
     method: string;
