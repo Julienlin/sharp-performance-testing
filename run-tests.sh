@@ -12,6 +12,9 @@ time npm run test:buffer
 echo -e "\nRunning Stream Test..."
 time npm run test:stream
 
+echo -e "\nRunning Sequential Stream Test..."
+time npm run test:sequential-stream
+
 echo -e "\nRunning Path Test..."
 time npm run test:path
 

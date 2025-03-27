@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { runBufferTest, runStreamTest, runPathTest } from './test-functions';
+import { runBufferTest, runStreamTest, runPathTest, runSequentialStreamTest } from './test-functions';
 import { TestResults } from './types';
 
 async function saveResults(method: string, results: TestResults) {
@@ -26,8 +26,8 @@ async function main() {
 
     // Get method from command line argument
     const method = process.argv[2];
-    if (!method || !['buffer', 'stream', 'path'].includes(method)) {
-        console.error('Please specify a method: buffer, stream, or path');
+    if (!method || !['buffer', 'stream', 'path', 'sequential-stream'].includes(method)) {
+        console.error('Please specify a method: buffer, stream, path, or sequential-stream');
         process.exit(1);
     }
 
@@ -44,6 +44,9 @@ async function main() {
             break;
         case 'path':
             results = await runPathTest(testImagePath, path.join(outputDir, 'output.jpg'));
+            break;
+        case 'sequential-stream':
+            results = await runSequentialStreamTest(testImagePath);
             break;
         default:
             throw new Error(`Unknown method: ${method}`);

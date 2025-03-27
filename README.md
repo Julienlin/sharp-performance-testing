@@ -17,94 +17,89 @@ This project compares the performance of different methods for image processing 
 
 ## Performance Results
 
-### Processing Time
+### Processing Time (ms)
 
-| Method | Average (ms) | Min (ms) | Max (ms) | StdDev |
-|--------|-------------|----------|----------|---------|
-| Buffer | 500.02      | 476.19   | 570.53   | 19.20   |
-| Stream | 507.49      | 480.02   | 595.96   | 25.26   |
-| Path   | 498.35      | 475.24   | 603.67   | 27.23   |
+| Method | Average | Min | Max | StdDev |
+|--------|---------|-----|-----|---------|
+| Buffer | 498.12 | 471.87 | 596.93 | 32.36 |
+| Stream | 492.36 | 477.39 | 537.65 | 13.86 |
+| Path | 482.81 | 468.51 | 563.38 | 17.46 |
+| Sequential Stream | 483.17 | 467.09 | 525.78 | 13.06 |
 
-### Memory Usage
+### Memory Usage (MB)
 
-#### Buffer Method
-- Total Memory Footprint: 234.42 MB
-- Memory Distribution:
-  - Heap Used: 5.15 MB (2.2%)
-  - External: 17.27 MB (7.4%)
-  - RSS: 211.99 MB (90.4%)
-- Detailed Stats:
-  - Heap Used: 5.15 MB (min: 4.00 MB, max: 6.00 MB)
-  - Heap Total: 6.90 MB (min: 6.00 MB, max: 10.00 MB)
-  - External: 17.27 MB (min: 2.00 MB, max: 35.00 MB)
-  - RSS: 211.99 MB (min: 56.00 MB, max: 230.00 MB)
+| Method | Total Memory | Heap Used | External | RSS |
+|--------|--------------|-----------|----------|-----|
+| Buffer | 235.26 | 5.25 (2.2%) | 17.70 (7.5%) | 212.31 (90.2%) |
+| Stream | 241.29 | 5.51 (2.3%) | 20.26 (8.4%) | 215.52 (89.3%) |
+| Path | 193.04 | 5.30 (2.7%) | 2.00 (1.0%) | 185.74 (96.2%) |
+| Sequential Stream | 203.64 | 5.37 (2.6%) | 7.64 (3.8%) | 190.63 (93.6%) |
 
-#### Stream Method
-- Total Memory Footprint: 242.01 MB
-- Memory Distribution:
-  - Heap Used: 5.37 MB (2.2%)
-  - External: 20.82 MB (8.6%)
-  - RSS: 215.82 MB (89.2%)
-- Detailed Stats:
-  - Heap Used: 5.37 MB (min: 5.00 MB, max: 6.00 MB)
-  - Heap Total: 7.35 MB (min: 6.00 MB, max: 10.00 MB)
-  - External: 20.82 MB (min: 2.00 MB, max: 38.00 MB)
-  - RSS: 215.82 MB (min: 57.00 MB, max: 229.00 MB)
+### Memory Usage Comparison (vs Path Method)
 
-#### Path Method
-- Total Memory Footprint: 193.22 MB
-- Memory Distribution:
-  - Heap Used: 5.19 MB (2.7%)
-  - External: 2.00 MB (1.0%)
-  - RSS: 186.04 MB (96.3%)
-- Detailed Stats:
-  - Heap Used: 5.19 MB (min: 4.00 MB, max: 6.00 MB)
-  - Heap Total: 7.00 MB (min: 6.00 MB, max: 10.00 MB)
-  - External: 2.00 MB (min: 2.00 MB, max: 2.00 MB)
-  - RSS: 186.04 MB (min: 57.00 MB, max: 196.00 MB)
+| Method | Processing Time | Total Memory | Heap Usage | External Memory | RSS |
+|--------|----------------|--------------|------------|-----------------|-----|
+| Buffer | +3.17% | +21.87% | -0.99% | +784.92% | +14.31% |
+| Stream | +1.98% | +25.00% | +3.87% | +913.22% | +16.03% |
+| Sequential Stream | +0.07% | +5.49% | +1.21% | +281.96% | +2.63% |
 
-### Relative Performance (vs Path Method)
+## Overall Memory Usage Analysis
 
-| Metric | Buffer | Stream |
-|--------|---------|---------|
-| Processing Time | +0.33% | +1.83% |
-| Total Memory | +21.32% | +25.25% |
-| Heap Usage | -0.62% | +3.56% |
-| External Memory | +763.67% | +941.03% |
-| RSS | +13.95% | +16.01% |
+### Total Memory Footprint
+- Buffer Method: 235.26 MB
+- Stream Method: 241.29 MB
+- Path Method: 193.04 MB
+- Sequential Stream Method: 203.64 MB
 
-## Analysis
+### Memory Efficiency
+- Path method remains the most memory-efficient overall
+- Sequential Stream method shows improved efficiency compared to Buffer and Stream methods
+- Stream method uses the most memory among all methods
 
-### Processing Time
-- All three methods perform similarly, with processing times within 2% of each other
-- The Path method shows the lowest average processing time (498.35ms)
-- The Stream method has the highest standard deviation (25.26ms), indicating less consistent performance
+### Memory Distribution
+- Heap Usage: All methods use similar amounts (5.25-5.51 MB)
+- External Memory: Path method has lowest (2.00 MB), Stream highest (20.26 MB)
+- RSS: Path method has lowest (185.74 MB), Stream highest (215.52 MB)
 
-### Memory Usage
-1. **Total Memory Footprint**
-   - Path method is most efficient: 193.22 MB
-   - Buffer method uses 21.32% more memory
-   - Stream method uses 25.25% more memory
-
-2. **Memory Distribution**
-   - Path method has the most efficient memory distribution
-   - External memory usage is significantly lower in Path method (2.00 MB vs 17.27 MB/20.82 MB)
-   - RSS memory is most stable in Path method (stdDev: 63.31 MB vs 78.13 MB/78.16 MB)
-
-3. **Memory Stability**
-   - Path method shows the most stable memory usage
-   - External memory is constant in Path method (2.00 MB)
-   - Stream method has the highest external memory variability
+### Memory Stability
+- Path method shows most stable memory usage (External memory stdDev: 0.00)
+- Sequential Stream method demonstrates good stability (External memory stdDev: 5.75)
+- Buffer and Stream methods show higher memory variability (External memory stdDev: 13.48 and 14.70)
 
 ## Conclusion
 
-The Path method emerges as the most efficient approach overall:
-1. Fastest average processing time (498.35ms)
-2. Lowest total memory footprint (193.22 MB)
-3. Most stable memory usage patterns
-4. Significantly lower external memory usage
+The test results show that all four methods perform similarly in terms of processing time (within 3.2% of each other), but exhibit significant differences in memory usage patterns:
 
-While the Buffer and Stream methods show similar processing times, they use significantly more memory, particularly in external memory allocation. The Path method's consistent and efficient memory usage makes it the recommended choice for production environments where memory efficiency is important.
+1. **Path Method**:
+   - Most memory-efficient overall (193.04 MB)
+   - Lowest external memory usage (2.00 MB)
+   - Most stable memory footprint
+   - Best choice for memory-constrained environments
+
+2. **Sequential Stream Method**:
+   - Second most memory-efficient (203.64 MB)
+   - Moderate external memory usage (7.64 MB)
+   - Good stability
+   - Best processing time performance
+   - Good balance between performance and memory usage
+
+3. **Buffer Method**:
+   - Moderate memory usage (235.26 MB)
+   - High external memory usage (17.70 MB)
+   - Good processing time
+   - Suitable when memory is not a primary concern
+
+4. **Stream Method**:
+   - Highest memory usage (241.29 MB)
+   - Highest external memory usage (20.26 MB)
+   - Similar processing time
+   - Best avoided in memory-constrained environments
+
+The choice between methods should be based on your specific requirements:
+- For memory efficiency: Use the Path method
+- For balanced performance: Use the Sequential Stream method
+- For maximum processing speed: Use the Buffer method
+- Avoid the Stream method unless specific streaming requirements exist
 
 ## Running the Tests
 

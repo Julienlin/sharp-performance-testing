@@ -153,18 +153,22 @@ function printComparison(comparison: { [key: string]: ComparisonResult }) {
         console.log(`    StdDev:  ${data.memoryUsage.rss.stdDev.toFixed(2)}`);
     }
 
-    // Find the most efficient method (lowest average processing time)
+    // Find the most efficient method (lowest overall memory usage)
     const methods = Object.keys(comparison);
     const baselineMethod = methods.reduce((best, current) => {
-        const bestTime = comparison[best].processingTime.average;
-        const currentTime = comparison[current].processingTime.average;
-        return currentTime < bestTime ? current : best;
+        const bestMemory = comparison[best].memoryUsage.heapUsed.average + 
+                          comparison[best].memoryUsage.external.average + 
+                          comparison[best].memoryUsage.rss.average;
+        const currentMemory = comparison[current].memoryUsage.heapUsed.average + 
+                            comparison[current].memoryUsage.external.average + 
+                            comparison[current].memoryUsage.rss.average;
+        return currentMemory < bestMemory ? current : best;
     });
 
     // Calculate and print relative performance
     console.log('\nRelative Performance:');
     console.log('--------------------');
-    console.log(`Baseline Method: ${baselineMethod.toUpperCase()}`);
+    console.log(`Baseline Method (lowest memory usage): ${baselineMethod.toUpperCase()}`);
     
     for (const method of methods) {
         if (method === baselineMethod) continue;
@@ -203,13 +207,15 @@ async function main() {
         buffer: [],
         stream: [],
         path: [],
+        'sequential-stream': [],
     };
 
     for (const file of files) {
         if (file.endsWith('.json')) {
-            const method = file.split('-')[0];
-            if (method in methodFiles) {
-                methodFiles[method].push(path.join(resultsDir, file));
+            for (const method of Object.keys(methodFiles)) {
+                if (file.startsWith(method)) {
+                    methodFiles[method].push(path.join(resultsDir, file));
+                }
             }
         }
     }

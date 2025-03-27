@@ -6,6 +6,7 @@
     "build": "tsc",
     "test:buffer": "NODE_OPTIONS='--max-old-space-size=8192' node --expose-gc dist/run-test.js buffer",
     "test:stream": "NODE_OPTIONS='--max-old-space-size=8192' node --expose-gc dist/run-test.js stream",
+    "test:sequential-stream": "NODE_OPTIONS='--max-old-space-size=8192' node --expose-gc dist/run-test.js sequential-stream",
     "test:path": "NODE_OPTIONS='--max-old-space-size=8192' node --expose-gc dist/run-test.js path",
     "compute:comparison": "node dist/compare-results.js",
     "compare:all": "./run-tests.sh",

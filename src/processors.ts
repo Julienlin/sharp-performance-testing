@@ -106,4 +106,33 @@ export async function processWithPath({ inputPath, outputPath, width, fit, witho
     } finally {
         clearInterval(samplingInterval);
     }
+}
+
+export async function processWithSequentialStream({ inputPath, width, fit, withoutEnlargement }: ProcessOptions): Promise<ProcessResult> {
+    const startTime = process.hrtime.bigint();
+    const memoryStartTime = Date.now();
+    const samples: ProcessResult['samples'] = [];
+
+    // Baseline memory usage
+    await sampleMemory(samples, memoryStartTime);
+
+    // Start memory sampling
+    const samplingInterval = setInterval(() => {
+        sampleMemory(samples, memoryStartTime);
+    }, DEFAULT_CONFIG.MEMORY_SAMPLE_INTERVAL);
+
+    try {
+        // Process the image using Sharp's sequential reading mode
+        await sharp(inputPath, { sequentialRead: true })
+            .resize(width, null, { fit, withoutEnlargement })
+            .toBuffer();
+
+        const endTime = process.hrtime.bigint();
+        return {
+            time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
+            samples,
+        };
+    } finally {
+        clearInterval(samplingInterval);
+    }
 } 

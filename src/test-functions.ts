@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { TestResults, ProcessResult } from './types';
 import { DEFAULT_CONFIG } from './config';
 import { calculateStatsForASample } from './utils';
-import { processWithBuffer, processWithStream, processWithPath } from './processors';
+import { processWithBuffer, processWithStream, processWithPath, processWithSequentialStream } from './processors';
 
 // Test Runner
 async function runTestIterations(
@@ -72,6 +72,18 @@ export async function runPathTest(inputPath: string, outputPath: string): Promis
             withoutEnlargement: DEFAULT_CONFIG.WITHOUT_ENLARGEMENT,
         }),
         'path'
+    );
+}
+
+export async function runSequentialStreamTest(inputPath: string): Promise<TestResults> {
+    return runTestIterations(
+        () => processWithSequentialStream({
+            inputPath,
+            width: DEFAULT_CONFIG.IMAGE_SIZE,
+            fit: DEFAULT_CONFIG.FIT,
+            withoutEnlargement: DEFAULT_CONFIG.WITHOUT_ENLARGEMENT,
+        }),
+        'sequential-stream'
     );
 }
 
