@@ -4,7 +4,7 @@ import path from 'path';
 import { createReadStream } from 'fs';
 
 // Configuration
-const TEST_ITERATIONS = 500;
+const TEST_ITERATIONS = 1000;
 const IMAGE_SIZE = 1920; // Width in pixels
 const MEMORY_SAMPLE_INTERVAL = 100; // ms
 
@@ -23,7 +23,6 @@ interface MemoryStats {
 }
 
 interface MemorySampleStats {
-    timestamp: number;
     heapUsed: MemoryStats;
     heapTotal: MemoryStats;
     external: MemoryStats;
@@ -162,61 +161,55 @@ async function processWithPath(inputPath: string, outputPath: string): Promise<P
     };
 }
 
-function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStats[] {
-    if (samplesArray.length === 0) return [];
+function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStats {
+    if (samplesArray.length === 0) {
+        return {
+            heapUsed: { min: 0, max: 0, avg: 0 },
+            heapTotal: { min: 0, max: 0, avg: 0 },
+            external: { min: 0, max: 0, avg: 0 },
+            rss: { min: 0, max: 0, avg: 0 }
+        };
+    }
 
-    // Find the maximum number of samples across all iterations
-    const maxSamples = Math.max(...samplesArray.map(samples => samples.length));
+    // Collect all values across all iterations and time points
+    let heapUsedValues: number[] = [];
+    let heapTotalValues: number[] = [];
+    let externalValues: number[] = [];
+    let rssValues: number[] = [];
 
-    // Initialize result array
-    const result: MemorySampleStats[] = [];
-
-    // For each time point, calculate the stats across all iterations
-    for (let i = 0; i < maxSamples; i++) {
-        let heapUsedValues: number[] = [];
-        let heapTotalValues: number[] = [];
-        let externalValues: number[] = [];
-        let rssValues: number[] = [];
-
-        // Collect values from all iterations that have this sample point
-        for (const samples of samplesArray) {
-            if (i < samples.length) {
-                heapUsedValues.push(samples[i].heapUsed);
-                heapTotalValues.push(samples[i].heapTotal);
-                externalValues.push(samples[i].external);
-                rssValues.push(samples[i].rss);
-            }
-        }
-
-        // Calculate stats if we have any samples
-        if (heapUsedValues.length > 0) {
-            result.push({
-                timestamp: samplesArray[0][i].timestamp,
-                heapUsed: {
-                    min: Math.min(...heapUsedValues),
-                    max: Math.max(...heapUsedValues),
-                    avg: heapUsedValues.reduce((a, b) => a + b, 0) / heapUsedValues.length,
-                },
-                heapTotal: {
-                    min: Math.min(...heapTotalValues),
-                    max: Math.max(...heapTotalValues),
-                    avg: heapTotalValues.reduce((a, b) => a + b, 0) / heapTotalValues.length,
-                },
-                external: {
-                    min: Math.min(...externalValues),
-                    max: Math.max(...externalValues),
-                    avg: externalValues.reduce((a, b) => a + b, 0) / externalValues.length,
-                },
-                rss: {
-                    min: Math.min(...rssValues),
-                    max: Math.max(...rssValues),
-                    avg: rssValues.reduce((a, b) => a + b, 0) / rssValues.length,
-                },
-            });
+    // Collect values from all iterations and all time points
+    for (const samples of samplesArray) {
+        for (const sample of samples) {
+            heapUsedValues.push(sample.heapUsed);
+            heapTotalValues.push(sample.heapTotal);
+            externalValues.push(sample.external);
+            rssValues.push(sample.rss);
         }
     }
 
-    return result;
+    // Calculate overall stats
+    return {
+        heapUsed: {
+            min: Math.min(...heapUsedValues),
+            max: Math.max(...heapUsedValues),
+            avg: heapUsedValues.reduce((a, b) => a + b, 0) / heapUsedValues.length
+        },
+        heapTotal: {
+            min: Math.min(...heapTotalValues),
+            max: Math.max(...heapTotalValues),
+            avg: heapTotalValues.reduce((a, b) => a + b, 0) / heapTotalValues.length
+        },
+        external: {
+            min: Math.min(...externalValues),
+            max: Math.max(...externalValues),
+            avg: externalValues.reduce((a, b) => a + b, 0) / externalValues.length
+        },
+        rss: {
+            min: Math.min(...rssValues),
+            max: Math.max(...rssValues),
+            avg: rssValues.reduce((a, b) => a + b, 0) / rssValues.length
+        }
+    };
 }
 
 async function runPerformanceTest() {
@@ -326,19 +319,28 @@ async function runPerformanceTest() {
     console.log(`  Average time: ${avgBufferTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minBufferTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxBufferTime.toFixed(2)}ms`);
-    console.log(`  Memory samples: ${avgBufferSamples.length} points`);
+    console.log(`  Memory samples: ${avgBufferSamples.heapUsed.avg.toFixed(2)}MB (min: ${avgBufferSamples.heapUsed.min.toFixed(2)}MB, max: ${avgBufferSamples.heapUsed.max.toFixed(2)}MB)`);
+    console.log(`    Heap Total: ${avgBufferSamples.heapTotal.avg.toFixed(2)}MB (min: ${avgBufferSamples.heapTotal.min.toFixed(2)}MB, max: ${avgBufferSamples.heapTotal.max.toFixed(2)}MB)`);
+    console.log(`    External: ${avgBufferSamples.external.avg.toFixed(2)}MB (min: ${avgBufferSamples.external.min.toFixed(2)}MB, max: ${avgBufferSamples.external.max.toFixed(2)}MB)`);
+    console.log(`    RSS: ${avgBufferSamples.rss.avg.toFixed(2)}MB (min: ${avgBufferSamples.rss.min.toFixed(2)}MB, max: ${avgBufferSamples.rss.max.toFixed(2)}MB)`);
 
     console.log('\nStream method:');
     console.log(`  Average time: ${avgStreamTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minStreamTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxStreamTime.toFixed(2)}ms`);
-    console.log(`  Memory samples: ${avgStreamSamples.length} points`);
+    console.log(`  Memory samples: ${avgStreamSamples.heapUsed.avg.toFixed(2)}MB (min: ${avgStreamSamples.heapUsed.min.toFixed(2)}MB, max: ${avgStreamSamples.heapUsed.max.toFixed(2)}MB)`);
+    console.log(`    Heap Total: ${avgStreamSamples.heapTotal.avg.toFixed(2)}MB (min: ${avgStreamSamples.heapTotal.min.toFixed(2)}MB, max: ${avgStreamSamples.heapTotal.max.toFixed(2)}MB)`);
+    console.log(`    External: ${avgStreamSamples.external.avg.toFixed(2)}MB (min: ${avgStreamSamples.external.min.toFixed(2)}MB, max: ${avgStreamSamples.external.max.toFixed(2)}MB)`);
+    console.log(`    RSS: ${avgStreamSamples.rss.avg.toFixed(2)}MB (min: ${avgStreamSamples.rss.min.toFixed(2)}MB, max: ${avgStreamSamples.rss.max.toFixed(2)}MB)`);
 
     console.log('\nPath method:');
     console.log(`  Average time: ${avgPathTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minPathTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxPathTime.toFixed(2)}ms`);
-    console.log(`  Memory samples: ${avgPathSamples.length} points`);
+    console.log(`  Memory samples: ${avgPathSamples.heapUsed.avg.toFixed(2)}MB (min: ${avgPathSamples.heapUsed.min.toFixed(2)}MB, max: ${avgPathSamples.heapUsed.max.toFixed(2)}MB)`);
+    console.log(`    Heap Total: ${avgPathSamples.heapTotal.avg.toFixed(2)}MB (min: ${avgPathSamples.heapTotal.min.toFixed(2)}MB, max: ${avgPathSamples.heapTotal.max.toFixed(2)}MB)`);
+    console.log(`    External: ${avgPathSamples.external.avg.toFixed(2)}MB (min: ${avgPathSamples.external.min.toFixed(2)}MB, max: ${avgPathSamples.external.max.toFixed(2)}MB)`);
+    console.log(`    RSS: ${avgPathSamples.rss.avg.toFixed(2)}MB (min: ${avgPathSamples.rss.min.toFixed(2)}MB, max: ${avgPathSamples.rss.max.toFixed(2)}MB)`);
 
     console.log('\nComparison:');
     console.log(`  Time Differences:`);
@@ -347,9 +349,47 @@ async function runPerformanceTest() {
     console.log(`    Stream vs Path: ${Math.abs(avgStreamTime - avgPathTime).toFixed(2)}ms`);
 
     console.log(`\n  Performance Ratios:`);
-    console.log(`    Path vs Buffer: ${(avgBufferTime / avgPathTime).toFixed(2)}x faster`);
-    console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x faster`);
-    console.log(`    Stream vs Buffer: ${(avgBufferTime / avgStreamTime).toFixed(2)}x faster`);
+    console.log(`    Path vs Buffer: Path is ${(avgBufferTime / avgPathTime).toFixed(2)}x faster`);
+    console.log(`    Path vs Stream: Path is ${(avgStreamTime / avgPathTime).toFixed(2)}x faster`);
+    console.log(`    Stream vs Buffer: Stream is ${(avgBufferTime / avgStreamTime).toFixed(2)}x faster`);
+
+    if (avgBufferSamples.heapUsed.avg > 0 && avgStreamSamples.heapUsed.avg > 0 && avgPathSamples.heapUsed.avg > 0) {
+        console.log('\n  Memory Usage Comparison:');
+        console.log('    Heap Used:');
+        console.log(`      Buffer: ${avgBufferSamples.heapUsed.avg.toFixed(2)}MB`);
+        console.log(`      Stream: ${avgStreamSamples.heapUsed.avg.toFixed(2)}MB`);
+        console.log(`      Path: ${avgPathSamples.heapUsed.avg.toFixed(2)}MB`);
+        console.log('    Heap Total:');
+        console.log(`      Buffer: ${avgBufferSamples.heapTotal.avg.toFixed(2)}MB`);
+        console.log(`      Stream: ${avgStreamSamples.heapTotal.avg.toFixed(2)}MB`);
+        console.log(`      Path: ${avgPathSamples.heapTotal.avg.toFixed(2)}MB`);
+        console.log('    External:');
+        console.log(`      Buffer: ${avgBufferSamples.external.avg.toFixed(2)}MB`);
+        console.log(`      Stream: ${avgStreamSamples.external.avg.toFixed(2)}MB`);
+        console.log(`      Path: ${avgPathSamples.external.avg.toFixed(2)}MB`);
+        console.log('    RSS:');
+        console.log(`      Buffer: ${avgBufferSamples.rss.avg.toFixed(2)}MB`);
+        console.log(`      Stream: ${avgStreamSamples.rss.avg.toFixed(2)}MB`);
+        console.log(`      Path: ${avgPathSamples.rss.avg.toFixed(2)}MB`);
+
+        console.log('\n  Memory Usage Ratios:');
+        console.log('    Heap Used:');
+        console.log(`      Buffer vs Path: Buffer uses ${(avgBufferSamples.heapUsed.avg / avgPathSamples.heapUsed.avg).toFixed(2)}x more`);
+        console.log(`      Stream vs Path: Stream uses ${(avgStreamSamples.heapUsed.avg / avgPathSamples.heapUsed.avg).toFixed(2)}x more`);
+        console.log(`      Buffer vs Stream: Buffer uses ${(avgBufferSamples.heapUsed.avg / avgStreamSamples.heapUsed.avg).toFixed(2)}x more`);
+        console.log('    Heap Total:');
+        console.log(`      Buffer vs Path: Buffer uses ${(avgBufferSamples.heapTotal.avg / avgPathSamples.heapTotal.avg).toFixed(2)}x more`);
+        console.log(`      Stream vs Path: Stream uses ${(avgStreamSamples.heapTotal.avg / avgPathSamples.heapTotal.avg).toFixed(2)}x more`);
+        console.log(`      Buffer vs Stream: Buffer uses ${(avgBufferSamples.heapTotal.avg / avgStreamSamples.heapTotal.avg).toFixed(2)}x more`);
+        console.log('    External:');
+        console.log(`      Buffer vs Path: Buffer uses ${(avgBufferSamples.external.avg / avgPathSamples.external.avg).toFixed(2)}x more`);
+        console.log(`      Stream vs Path: Stream uses ${(avgStreamSamples.external.avg / avgPathSamples.external.avg).toFixed(2)}x more`);
+        console.log(`      Buffer vs Stream: Buffer uses ${(avgBufferSamples.external.avg / avgStreamSamples.external.avg).toFixed(2)}x more`);
+        console.log('    RSS:');
+        console.log(`      Buffer vs Path: Buffer uses ${(avgBufferSamples.rss.avg / avgPathSamples.rss.avg).toFixed(2)}x more`);
+        console.log(`      Stream vs Path: Stream uses ${(avgStreamSamples.rss.avg / avgPathSamples.rss.avg).toFixed(2)}x more`);
+        console.log(`      Buffer vs Stream: Buffer uses ${(avgBufferSamples.rss.avg / avgStreamSamples.rss.avg).toFixed(2)}x more`);
+    }
 }
 
 // Run the test
