@@ -8,16 +8,17 @@ const TEST_ITERATIONS = 500;
 const IMAGE_SIZE = 1920; // Width in pixels
 const QUALITY = 80;
 
-function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: number } {
+function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: number; rss: number } {
     const usage = process.memoryUsage();
     return {
         heapUsed: Math.round(usage.heapUsed / 1024 / 1024), // MB
         heapTotal: Math.round(usage.heapTotal / 1024 / 1024), // MB
-        external: Math.round(usage.external / 1024 / 1024) // MB
+        external: Math.round(usage.external / 1024 / 1024), // MB
+        rss: Math.round(usage.rss / 1024 / 1024) // MB
     };
 }
 
-async function processWithBuffer(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number } }> {
+async function processWithBuffer(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
     const startTime = process.hrtime.bigint();
     const startMemory = getMemoryUsage();
     
@@ -30,7 +31,6 @@ async function processWithBuffer(inputPath: string): Promise<{ time: number; mem
             fit: 'inside',
             withoutEnlargement: true
         })
-        .jpeg({ quality: QUALITY })
         .toBuffer();
     
     const endTime = process.hrtime.bigint();
@@ -41,12 +41,13 @@ async function processWithBuffer(inputPath: string): Promise<{ time: number; mem
         memory: {
             heapUsed: endMemory.heapUsed - startMemory.heapUsed,
             heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external
+            external: endMemory.external - startMemory.external,
+            rss: endMemory.rss - startMemory.rss
         }
     };
 }
 
-async function processWithStream(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number } }> {
+async function processWithStream(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
     const startTime = process.hrtime.bigint();
     const startMemory = getMemoryUsage();
     
@@ -61,7 +62,7 @@ async function processWithStream(inputPath: string): Promise<{ time: number; mem
                     fit: 'inside',
                     withoutEnlargement: true
                 })
-                .jpeg({ quality: QUALITY }))
+                )
             .toBuffer((err) => {
                 if (err) reject(err);
                 else resolve(null);
@@ -76,12 +77,13 @@ async function processWithStream(inputPath: string): Promise<{ time: number; mem
         memory: {
             heapUsed: endMemory.heapUsed - startMemory.heapUsed,
             heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external
+            external: endMemory.external - startMemory.external,
+            rss: endMemory.rss - startMemory.rss
         }
     };
 }
 
-async function processWithPath(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number } }> {
+async function processWithPath(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
     const startTime = process.hrtime.bigint();
     const startMemory = getMemoryUsage();
     
@@ -91,7 +93,6 @@ async function processWithPath(inputPath: string): Promise<{ time: number; memor
             fit: 'inside',
             withoutEnlargement: true
         })
-        .jpeg({ quality: QUALITY })
         .toBuffer();
     
     const endTime = process.hrtime.bigint();
@@ -102,7 +103,8 @@ async function processWithPath(inputPath: string): Promise<{ time: number; memor
         memory: {
             heapUsed: endMemory.heapUsed - startMemory.heapUsed,
             heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external
+            external: endMemory.external - startMemory.external,
+            rss: endMemory.rss - startMemory.rss
         }
     };
 }
@@ -124,7 +126,7 @@ async function runPerformanceTest() {
 
     // Test with buffer
     console.log('Testing with buffer method:');
-    const bufferResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number } }[] = [];
+    const bufferResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
@@ -141,7 +143,7 @@ async function runPerformanceTest() {
 
     // Test with stream
     console.log('\nTesting with stream method:');
-    const streamResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number } }[] = [];
+    const streamResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
@@ -158,7 +160,7 @@ async function runPerformanceTest() {
 
     // Test with path
     console.log('\nTesting with path method:');
-    const pathResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number } }[] = [];
+    const pathResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
@@ -189,17 +191,20 @@ async function runPerformanceTest() {
     const avgBufferMemory = {
         heapUsed: bufferResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
         heapTotal: bufferResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: bufferResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS
+        external: bufferResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
+        rss: bufferResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
     };
     const avgStreamMemory = {
         heapUsed: streamResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
         heapTotal: streamResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: streamResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS
+        external: streamResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
+        rss: streamResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
     };
     const avgPathMemory = {
         heapUsed: pathResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
         heapTotal: pathResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: pathResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS
+        external: pathResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
+        rss: pathResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
     };
 
     console.log('\nResults:');
@@ -211,6 +216,7 @@ async function runPerformanceTest() {
     console.log(`    Heap Used: ${avgBufferMemory.heapUsed.toFixed(2)}MB`);
     console.log(`    Heap Total: ${avgBufferMemory.heapTotal.toFixed(2)}MB`);
     console.log(`    External: ${avgBufferMemory.external.toFixed(2)}MB`);
+    console.log(`    RSS: ${avgBufferMemory.rss.toFixed(2)}MB`);
     
     console.log('\nStream method:');
     console.log(`  Average time: ${avgStreamTime.toFixed(2)}ms`);
@@ -220,6 +226,7 @@ async function runPerformanceTest() {
     console.log(`    Heap Used: ${avgStreamMemory.heapUsed.toFixed(2)}MB`);
     console.log(`    Heap Total: ${avgStreamMemory.heapTotal.toFixed(2)}MB`);
     console.log(`    External: ${avgStreamMemory.external.toFixed(2)}MB`);
+    console.log(`    RSS: ${avgStreamMemory.rss.toFixed(2)}MB`);
 
     console.log('\nPath method:');
     console.log(`  Average time: ${avgPathTime.toFixed(2)}ms`);
@@ -229,6 +236,7 @@ async function runPerformanceTest() {
     console.log(`    Heap Used: ${avgPathMemory.heapUsed.toFixed(2)}MB`);
     console.log(`    Heap Total: ${avgPathMemory.heapTotal.toFixed(2)}MB`);
     console.log(`    External: ${avgPathMemory.external.toFixed(2)}MB`);
+    console.log(`    RSS: ${avgPathMemory.rss.toFixed(2)}MB`);
     
     console.log('\nComparison:');
     console.log(`  Time Difference (Buffer vs Stream): ${Math.abs(avgBufferTime - avgStreamTime).toFixed(2)}ms`);
@@ -240,9 +248,22 @@ async function runPerformanceTest() {
     console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x`);
     
     console.log('\n  Memory Differences:');
-    console.log(`    Heap Used (Buffer vs Stream): ${Math.abs(avgBufferMemory.heapUsed - avgStreamMemory.heapUsed).toFixed(2)}MB`);
-    console.log(`    Heap Used (Buffer vs Path): ${Math.abs(avgBufferMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
-    console.log(`    Heap Used (Stream vs Path): ${Math.abs(avgStreamMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
+    console.log(`    Heap Used:`);
+    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.heapUsed - avgStreamMemory.heapUsed).toFixed(2)}MB`);
+    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
+    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
+    console.log(`    Heap Total:`);
+    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.heapTotal - avgStreamMemory.heapTotal).toFixed(2)}MB`);
+    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.heapTotal - avgPathMemory.heapTotal).toFixed(2)}MB`);
+    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.heapTotal - avgPathMemory.heapTotal).toFixed(2)}MB`);
+    console.log(`    External:`);
+    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.external - avgStreamMemory.external).toFixed(2)}MB`);
+    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.external - avgPathMemory.external).toFixed(2)}MB`);
+    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.external - avgPathMemory.external).toFixed(2)}MB`);
+    console.log(`    RSS:`);
+    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.rss - avgStreamMemory.rss).toFixed(2)}MB`);
+    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.rss - avgPathMemory.rss).toFixed(2)}MB`);
+    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.rss - avgPathMemory.rss).toFixed(2)}MB`);
 }
 
 // Run the test
