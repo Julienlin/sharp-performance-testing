@@ -6,7 +6,34 @@ import { createReadStream } from 'fs';
 // Configuration
 const TEST_ITERATIONS = 500;
 const IMAGE_SIZE = 1920; // Width in pixels
-const QUALITY = 80;
+const MEMORY_SAMPLE_INTERVAL = 100; // ms
+
+interface MemorySample {
+    timestamp: number;
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    rss: number;
+}
+
+interface MemoryStats {
+    min: number;
+    max: number;
+    avg: number;
+}
+
+interface MemorySampleStats {
+    timestamp: number;
+    heapUsed: MemoryStats;
+    heapTotal: MemoryStats;
+    external: MemoryStats;
+    rss: MemoryStats;
+}
+
+interface ProcessResult {
+    time: number;
+    samples: MemorySample[];
+}
 
 function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: number; rss: number } {
     const usage = process.memoryUsage();
@@ -18,9 +45,23 @@ function getMemoryUsage(): { heapUsed: number; heapTotal: number; external: numb
     };
 }
 
-async function processWithBuffer(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
+async function sampleMemory(samples: MemorySample[], startTime: number) {
+    const memory = getMemoryUsage();
+    samples.push({
+        timestamp: Date.now() - startTime,
+        ...memory
+    });
+}
+
+async function processWithBuffer(inputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
-    const startMemory = getMemoryUsage();
+    const memoryStartTime = Date.now();
+    const samples: MemorySample[] = [];
+    
+    // Start memory sampling
+    const samplingInterval = setInterval(() => {
+        sampleMemory(samples, memoryStartTime);
+    }, MEMORY_SAMPLE_INTERVAL);
     
     // Read the entire file into memory
     const inputBuffer = await fs.promises.readFile(inputPath);
@@ -33,23 +74,26 @@ async function processWithBuffer(inputPath: string): Promise<{ time: number; mem
         })
         .toBuffer();
     
+    // Stop memory sampling
+    clearInterval(samplingInterval);
+    
     const endTime = process.hrtime.bigint();
-    const endMemory = getMemoryUsage();
     
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        memory: {
-            heapUsed: endMemory.heapUsed - startMemory.heapUsed,
-            heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external,
-            rss: endMemory.rss - startMemory.rss
-        }
+        samples
     };
 }
 
-async function processWithStream(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
+async function processWithStream(inputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
-    const startMemory = getMemoryUsage();
+    const memoryStartTime = Date.now();
+    const samples: MemorySample[] = [];
+    
+    // Start memory sampling
+    const samplingInterval = setInterval(() => {
+        sampleMemory(samples, memoryStartTime);
+    }, MEMORY_SAMPLE_INTERVAL);
     
     // Create read stream
     const readStream = createReadStream(inputPath);
@@ -61,31 +105,33 @@ async function processWithStream(inputPath: string): Promise<{ time: number; mem
                 .resize(IMAGE_SIZE, null, {
                     fit: 'inside',
                     withoutEnlargement: true
-                })
-                )
+                }))
             .toBuffer((err) => {
                 if (err) reject(err);
                 else resolve(null);
             });
     });
     
+    // Stop memory sampling
+    clearInterval(samplingInterval);
+    
     const endTime = process.hrtime.bigint();
-    const endMemory = getMemoryUsage();
     
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        memory: {
-            heapUsed: endMemory.heapUsed - startMemory.heapUsed,
-            heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external,
-            rss: endMemory.rss - startMemory.rss
-        }
+        samples
     };
 }
 
-async function processWithPath(inputPath: string): Promise<{ time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }> {
+async function processWithPath(inputPath: string, outputPath: string): Promise<ProcessResult> {
     const startTime = process.hrtime.bigint();
-    const startMemory = getMemoryUsage();
+    const memoryStartTime = Date.now();
+    const samples: MemorySample[] = [];
+    
+    // Start memory sampling
+    const samplingInterval = setInterval(() => {
+        sampleMemory(samples, memoryStartTime);
+    }, MEMORY_SAMPLE_INTERVAL);
     
     // Process the image using direct path access
     await sharp(inputPath)
@@ -93,25 +139,82 @@ async function processWithPath(inputPath: string): Promise<{ time: number; memor
             fit: 'inside',
             withoutEnlargement: true
         })
-        .toBuffer();
+        .toFile(outputPath);
+    
+    // Stop memory sampling
+    clearInterval(samplingInterval);
     
     const endTime = process.hrtime.bigint();
-    const endMemory = getMemoryUsage();
     
     return {
         time: Number(endTime - startTime) / 1_000_000, // Convert to milliseconds
-        memory: {
-            heapUsed: endMemory.heapUsed - startMemory.heapUsed,
-            heapTotal: endMemory.heapTotal - startMemory.heapTotal,
-            external: endMemory.external - startMemory.external,
-            rss: endMemory.rss - startMemory.rss
-        }
+        samples
     };
+}
+
+
+
+function calculateSamplesStats(samplesArray: MemorySample[][]): MemorySampleStats[] {
+    if (samplesArray.length === 0) return [];
+    
+    // Find the maximum number of samples across all iterations
+    const maxSamples = Math.max(...samplesArray.map(samples => samples.length));
+    
+    // Initialize result array
+    const result: MemorySampleStats[] = [];
+    
+    // For each time point, calculate the stats across all iterations
+    for (let i = 0; i < maxSamples; i++) {
+        let heapUsedValues: number[] = [];
+        let heapTotalValues: number[] = [];
+        let externalValues: number[] = [];
+        let rssValues: number[] = [];
+        
+        // Collect values from all iterations that have this sample point
+        for (const samples of samplesArray) {
+            if (i < samples.length) {
+                heapUsedValues.push(samples[i].heapUsed);
+                heapTotalValues.push(samples[i].heapTotal);
+                externalValues.push(samples[i].external);
+                rssValues.push(samples[i].rss);
+            }
+        }
+        
+        // Calculate stats if we have any samples
+        if (heapUsedValues.length > 0) {
+            result.push({
+                timestamp: samplesArray[0][i].timestamp,
+                heapUsed: {
+                    min: Math.min(...heapUsedValues),
+                    max: Math.max(...heapUsedValues),
+                    avg: heapUsedValues.reduce((a, b) => a + b, 0) / heapUsedValues.length
+                },
+                heapTotal: {
+                    min: Math.min(...heapTotalValues),
+                    max: Math.max(...heapTotalValues),
+                    avg: heapTotalValues.reduce((a, b) => a + b, 0) / heapTotalValues.length
+                },
+                external: {
+                    min: Math.min(...externalValues),
+                    max: Math.max(...externalValues),
+                    avg: externalValues.reduce((a, b) => a + b, 0) / externalValues.length
+                },
+                rss: {
+                    min: Math.min(...rssValues),
+                    max: Math.max(...rssValues),
+                    avg: rssValues.reduce((a, b) => a + b, 0) / rssValues.length
+                }
+            });
+        }
+    }
+    
+    return result;
 }
 
 async function runPerformanceTest() {
     // Create test directory if it doesn't exist
     const testDir = path.join(__dirname, '..', 'test-images');
+    await fs.promises.rm(testDir, { recursive: true, force: true });
     await fs.promises.mkdir(testDir, { recursive: true });
 
     // Create a test image if it doesn't exist
@@ -122,11 +225,12 @@ async function runPerformanceTest() {
     console.log(`- Iterations: ${TEST_ITERATIONS}`);
     console.log(`- Input image: 3840x2160`);
     console.log(`- Output width: ${IMAGE_SIZE}px`);
-    console.log(`- JPEG quality: ${QUALITY}\n`);
+    console.log(`- Node.js memory limit: ${process.env.NODE_OPTIONS || 'default'}`);
+    console.log(`- Memory sampling interval: ${MEMORY_SAMPLE_INTERVAL}ms\n`);
 
     // Test with buffer
     console.log('Testing with buffer method:');
-    const bufferResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
+    const bufferResults: ProcessResult[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
@@ -143,7 +247,7 @@ async function runPerformanceTest() {
 
     // Test with stream
     console.log('\nTesting with stream method:');
-    const streamResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
+    const streamResults: ProcessResult[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
@@ -160,11 +264,11 @@ async function runPerformanceTest() {
 
     // Test with path
     console.log('\nTesting with path method:');
-    const pathResults: { time: number; memory: { heapUsed: number; heapTotal: number; external: number; rss: number } }[] = [];
+    const pathResults: ProcessResult[] = [];
     for (let i = 0; i < TEST_ITERATIONS; i++) {
         // Clear Sharp's cache before each iteration
         sharp.cache(false);
-        const result = await processWithPath(testImagePath);
+        const result = await processWithPath(testImagePath, path.join(testDir, `output-${i}.jpg`));
         pathResults.push(result);
         
         // Show progress every 100 iterations
@@ -175,11 +279,12 @@ async function runPerformanceTest() {
         }
     }
 
-    // Calculate and display results
+    // Calculate average time
     const avgBufferTime = bufferResults.reduce((a, b) => a + b.time, 0) / TEST_ITERATIONS;
     const avgStreamTime = streamResults.reduce((a, b) => a + b.time, 0) / TEST_ITERATIONS;
     const avgPathTime = pathResults.reduce((a, b) => a + b.time, 0) / TEST_ITERATIONS;
-    
+
+    // Calculate min and max times
     const minBufferTime = Math.min(...bufferResults.map(r => r.time));
     const maxBufferTime = Math.max(...bufferResults.map(r => r.time));
     const minStreamTime = Math.min(...streamResults.map(r => r.time));
@@ -187,83 +292,41 @@ async function runPerformanceTest() {
     const minPathTime = Math.min(...pathResults.map(r => r.time));
     const maxPathTime = Math.max(...pathResults.map(r => r.time));
 
-    // Calculate average memory usage
-    const avgBufferMemory = {
-        heapUsed: bufferResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
-        heapTotal: bufferResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: bufferResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
-        rss: bufferResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
-    };
-    const avgStreamMemory = {
-        heapUsed: streamResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
-        heapTotal: streamResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: streamResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
-        rss: streamResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
-    };
-    const avgPathMemory = {
-        heapUsed: pathResults.reduce((a, b) => a + b.memory.heapUsed, 0) / TEST_ITERATIONS,
-        heapTotal: pathResults.reduce((a, b) => a + b.memory.heapTotal, 0) / TEST_ITERATIONS,
-        external: pathResults.reduce((a, b) => a + b.memory.external, 0) / TEST_ITERATIONS,
-        rss: pathResults.reduce((a, b) => a + b.memory.rss, 0) / TEST_ITERATIONS
-    };
+    // Calculate average memory samples
+    const avgBufferSamples = calculateSamplesStats(bufferResults.map(r => r.samples));
+    const avgStreamSamples = calculateSamplesStats(streamResults.map(r => r.samples));
+    const avgPathSamples = calculateSamplesStats(pathResults.map(r => r.samples));
 
     console.log('\nResults:');
     console.log('Buffer method:');
     console.log(`  Average time: ${avgBufferTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minBufferTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxBufferTime.toFixed(2)}ms`);
-    console.log(`  Memory usage:`);
-    console.log(`    Heap Used: ${avgBufferMemory.heapUsed.toFixed(2)}MB`);
-    console.log(`    Heap Total: ${avgBufferMemory.heapTotal.toFixed(2)}MB`);
-    console.log(`    External: ${avgBufferMemory.external.toFixed(2)}MB`);
-    console.log(`    RSS: ${avgBufferMemory.rss.toFixed(2)}MB`);
+    console.log(`  Memory samples: ${avgBufferSamples.length} points`);
     
     console.log('\nStream method:');
     console.log(`  Average time: ${avgStreamTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minStreamTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxStreamTime.toFixed(2)}ms`);
-    console.log(`  Memory usage:`);
-    console.log(`    Heap Used: ${avgStreamMemory.heapUsed.toFixed(2)}MB`);
-    console.log(`    Heap Total: ${avgStreamMemory.heapTotal.toFixed(2)}MB`);
-    console.log(`    External: ${avgStreamMemory.external.toFixed(2)}MB`);
-    console.log(`    RSS: ${avgStreamMemory.rss.toFixed(2)}MB`);
-
+    console.log(`  Memory samples: ${avgStreamSamples.length} points`);
+    
     console.log('\nPath method:');
     console.log(`  Average time: ${avgPathTime.toFixed(2)}ms`);
     console.log(`  Min time: ${minPathTime.toFixed(2)}ms`);
     console.log(`  Max time: ${maxPathTime.toFixed(2)}ms`);
-    console.log(`  Memory usage:`);
-    console.log(`    Heap Used: ${avgPathMemory.heapUsed.toFixed(2)}MB`);
-    console.log(`    Heap Total: ${avgPathMemory.heapTotal.toFixed(2)}MB`);
-    console.log(`    External: ${avgPathMemory.external.toFixed(2)}MB`);
-    console.log(`    RSS: ${avgPathMemory.rss.toFixed(2)}MB`);
+    console.log(`  Memory samples: ${avgPathSamples.length} points`);
     
     console.log('\nComparison:');
-    console.log(`  Time Difference (Buffer vs Stream): ${Math.abs(avgBufferTime - avgStreamTime).toFixed(2)}ms`);
-    console.log(`  Time Difference (Buffer vs Path): ${Math.abs(avgBufferTime - avgPathTime).toFixed(2)}ms`);
-    console.log(`  Time Difference (Stream vs Path): ${Math.abs(avgStreamTime - avgPathTime).toFixed(2)}ms`);
-    console.log('\n  Performance Ratios:');
-    console.log(`    Stream vs Buffer: ${(avgBufferTime / avgStreamTime).toFixed(2)}x`);
-    console.log(`    Path vs Buffer: ${(avgBufferTime / avgPathTime).toFixed(2)}x`);
-    console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x`);
+    console.log(`  Time Differences:`);
+    console.log(`    Buffer vs Stream: ${Math.abs(avgBufferTime - avgStreamTime).toFixed(2)}ms`);
+    console.log(`    Buffer vs Path: ${Math.abs(avgBufferTime - avgPathTime).toFixed(2)}ms`);
+    console.log(`    Stream vs Path: ${Math.abs(avgStreamTime - avgPathTime).toFixed(2)}ms`);
     
-    console.log('\n  Memory Differences:');
-    console.log(`    Heap Used:`);
-    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.heapUsed - avgStreamMemory.heapUsed).toFixed(2)}MB`);
-    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
-    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.heapUsed - avgPathMemory.heapUsed).toFixed(2)}MB`);
-    console.log(`    Heap Total:`);
-    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.heapTotal - avgStreamMemory.heapTotal).toFixed(2)}MB`);
-    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.heapTotal - avgPathMemory.heapTotal).toFixed(2)}MB`);
-    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.heapTotal - avgPathMemory.heapTotal).toFixed(2)}MB`);
-    console.log(`    External:`);
-    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.external - avgStreamMemory.external).toFixed(2)}MB`);
-    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.external - avgPathMemory.external).toFixed(2)}MB`);
-    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.external - avgPathMemory.external).toFixed(2)}MB`);
-    console.log(`    RSS:`);
-    console.log(`      Buffer vs Stream: ${Math.abs(avgBufferMemory.rss - avgStreamMemory.rss).toFixed(2)}MB`);
-    console.log(`      Buffer vs Path: ${Math.abs(avgBufferMemory.rss - avgPathMemory.rss).toFixed(2)}MB`);
-    console.log(`      Stream vs Path: ${Math.abs(avgStreamMemory.rss - avgPathMemory.rss).toFixed(2)}MB`);
+    console.log(`\n  Performance Ratios:`);
+    console.log(`    Path vs Buffer: ${(avgBufferTime / avgPathTime).toFixed(2)}x faster`);
+    console.log(`    Path vs Stream: ${(avgStreamTime / avgPathTime).toFixed(2)}x faster`);
+    console.log(`    Stream vs Buffer: ${(avgBufferTime / avgStreamTime).toFixed(2)}x faster`);
+
 }
 
 // Run the test
